@@ -21,6 +21,8 @@ function tag_Large_Gmail_Messages()
 {
   var sizeLimit = "2000000";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
   var start = new Date();
+  var timedOut = false;
+  var processed = 0;
   Logger.log("Now finding all the big emails in your Gmail mailbox.");
   var label = GmailApp.getUserLabelByName("LargeEmails");
   if(label == null)
@@ -40,12 +42,11 @@ function tag_Large_Gmail_Messages()
     {
       if (isTimeUp(start)) 
       {
-        Logger.log("Time's up.  Will have to finish processing later.");
+      	timedOut = true;
         break;
       }
       label.addToThread(threads[i]);
-      // It's not needed to calculate the size, just let the search return the results.
-      // I'm leaving this code in place for reference.
+      processed++;
       //var messages = threads[i].getMessages();
       //for (var m=0; m<messages.length; m++)
       //{
@@ -62,7 +63,14 @@ function tag_Large_Gmail_Messages()
       //}
     }
   }
-  Logger.log( "Done tagging large emails.  Finished within time limit." );
+  if( timedOut )
+  {
+	  Logger.log("Time's up.  Will have to finish processing later. Messages tagged: " + processed );
+	}
+	else
+	{
+	  Logger.log( "Done tagging large emails (within time limit). Messages tagged: " + processed );
+	}
 }
 
 // Adapted from:
@@ -75,6 +83,8 @@ function tag_Large_Gmail_Messages()
 function save_Gmail_as_PDF()
 {
   var start = new Date();
+  var timedOut = false;
+  var processed = 0;
   var label = GmailApp.getUserLabelByName("Save as PDF");  
   var labelAfter = GmailApp.getUserLabelByName("Saved To PDF");  
   if(labelAfter == null){
@@ -89,9 +99,9 @@ function save_Gmail_as_PDF()
     Logger.log( "Saving " + threads.length + " emails to google drive." );
     for (var i = 0; i < threads.length; i++) 
     {
-      if (isTimeUp(start) ) 
+      if( isTimeUp(start) ) 
       {
-        Logger.log("Time's up.  Will have to finish processing later.");
+        timedOut = true;
         break;
       }
       var messages = threads[i].getMessages();  
@@ -144,9 +154,17 @@ function save_Gmail_as_PDF()
       DriveApp.getFileById(bodyId).setTrashed(true);
       label.removeFromThread(threads[i]);
       labelAfter.addToThread(threads[i]);
+      processed++;
     }
-  }  
-  Logger.log( "Done saving emails as PDF to google drive.  Finished within time limit." );
+  }
+  if( timedOut )
+  {
+    Logger.log("Time's up.  Will have to finish processing later. Messages saved: " + processed );
+  }
+  else
+  {
+    Logger.log( "Done saving emails as PDF to google drive (within time limit). Messages saved: " + processed );
+  }
 }
 
 // Adapted from:

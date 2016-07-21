@@ -18,7 +18,9 @@ function check_auto_delete_mails()
 // https://ctrlq.org/code/19040-gmail-size-search
 
 function tag_Large_Gmail_Messages() 
-{    
+{
+  var mbLimit = 3;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
+  var start = new Date();
   Logger.log("Now finding all the big emails in your Gmail mailbox.");
   var label = GmailApp.getUserLabelByName("LargeEmails");
   if(label == null)
@@ -28,28 +30,34 @@ function tag_Large_Gmail_Messages()
   else
   {
     // Find all Gmail messages that have attachments
-    var threads = GmailApp.search('has:attachment larger:1m -LargeEmails -label:saved-to-pdf -label:Lists-idesign-alumni -label:okayToBeLarge ');
+    var threads = GmailApp.search('has:attachment larger:' + mbLimit + 'm -LargeEmails -label:saved-to-pdf -label:Lists-idesign-alumni -label:okayToBeLarge ');
     if (threads.length == 0) 
     {
       return;
     }
     for (var i=0; i<threads.length; i++) 
     {
+      if (isTimeUp(start)) 
+      {
+        Logger.log("Time's up.  Will have to finish processing later.");
+        break;
+      }
       var messages = threads[i].getMessages();
       for (var m=0; m<messages.length; m++)
       {
         var size = getMessageSize(messages[m].getAttachments());      
-        // If the total size of attachments is > 1 MB, log the messages
+        // If the total size of attachments is > MB limit, log the messages
         // You can change this value as per requirement.
-        if (size >= 1)
+        if (size >= mbLimit)
         {
           label.addToThread(threads[i]);
         }
       }
     }
   }
+  Logger.log( "Done tagging large emails.  Finished within time limit." );
 }
- 
+
 // Adapted from:
 // https://www.maketecheasier.com/google-scripts-to-automate-gmail/
 
@@ -57,7 +65,9 @@ function tag_Large_Gmail_Messages()
 // http://www.labnol.org/internet/send-gmail-to-google-drive/21236/
 // https://chrome.google.com/webstore/detail/save-emails-and-attachmen/nflmnfjphdbeagnilbihcodcophecebc
 
-function save_Gmail_as_PDF(){
+function save_Gmail_as_PDF()
+{
+  var start = new Date();
   var label = GmailApp.getUserLabelByName("Save as PDF");  
   var labelAfter = GmailApp.getUserLabelByName("Saved To PDF");  
   if(labelAfter == null){
@@ -68,9 +78,15 @@ function save_Gmail_as_PDF(){
   }
   else
   {
-    var threads = label.getThreads();  
+    var threads = label.getThreads();
     Logger.log( "Saving " + threads.length + " emails to google drive." );
-    for (var i = 0; i < threads.length; i++) {  
+    for (var i = 0; i < threads.length; i++) 
+    {
+      if (isTimeUp(start) ) 
+      {
+        Logger.log("Time's up.  Will have to finish processing later.");
+        break;
+      }
       var messages = threads[i].getMessages();  
       var message = messages[0];
       var body    = message.getBody();
@@ -82,11 +98,14 @@ function save_Gmail_as_PDF(){
       
       var jsonTextFormatted = getInfoText( message, threads[i] );
       
-      for(var j = 1;j<messages.length;j++){
+      for(var j = 1;j<messages.length;j++)
+      {
         body += messages[j].getBody();
         var temp_attach = messages[j].getAttachments();
-        if(temp_attach.length>0){
-          for(var k =0;k<temp_attach.length;k++){
+        if(temp_attach.length>0)
+        {
+          for(var k =0;k<temp_attach.length;k++)
+          {
             attachments.push(temp_attach[k]);
           }
         }
@@ -120,8 +139,18 @@ function save_Gmail_as_PDF(){
       labelAfter.addToThread(threads[i]);
     }
   }  
+  Logger.log( "Done saving emails as PDF to google drive.  Finished within time limit." );
 }
 
+// Adapted from:
+// https://ctrlq.org/code/20016-maximum-execution-time-limit
+
+function isTimeUp(pStart) 
+{
+  var now = new Date();
+  return now.getTime() - pStart.getTime() > 300000 - 60000; // 5 minutes - 1 minute safety buffer.
+}
+ 
 function autoDeleteMails( labelToClean, numberOfDays ) 
 {  
   var label = GmailApp.getUserLabelByName( labelToClean );  

@@ -19,7 +19,7 @@ function check_auto_delete_mails()
 
 function tag_Large_Gmail_Messages() 
 {
-  var mbLimit = 3;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
+  var sizeLimit = "2000000";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
   var start = new Date();
   Logger.log("Now finding all the big emails in your Gmail mailbox.");
   var label = GmailApp.getUserLabelByName("LargeEmails");
@@ -30,11 +30,12 @@ function tag_Large_Gmail_Messages()
   else
   {
     // Find all Gmail messages that have attachments
-    var threads = GmailApp.search('has:attachment larger:' + mbLimit + 'm -LargeEmails -label:saved-to-pdf -label:Lists-idesign-alumni -label:okayToBeLarge ');
+    var threads = GmailApp.search('has:attachment larger:' + sizeLimit + ' -LargeEmails -label:saved-to-pdf -label:Lists-idesign-alumni -label:okayToBeLarge');
     if (threads.length == 0) 
     {
       return;
     }
+    Logger.log("Search returned " + threads.length + " threads larger than " + sizeLimit + ".");
     for (var i=0; i<threads.length; i++) 
     {
       if (isTimeUp(start)) 
@@ -42,17 +43,23 @@ function tag_Large_Gmail_Messages()
         Logger.log("Time's up.  Will have to finish processing later.");
         break;
       }
-      var messages = threads[i].getMessages();
-      for (var m=0; m<messages.length; m++)
-      {
-        var size = getMessageSize(messages[m].getAttachments());      
-        // If the total size of attachments is > MB limit, log the messages
-        // You can change this value as per requirement.
-        if (size >= mbLimit)
-        {
-          label.addToThread(threads[i]);
-        }
-      }
+      label.addToThread(threads[i]);
+      // It's not needed to calculate the size, just let the search return the results.
+      // I'm leaving this code in place for reference.
+      //var messages = threads[i].getMessages();
+      //for (var m=0; m<messages.length; m++)
+      //{
+      //  var size = getMessageSize(messages[m].getAttachments());      
+      //  // If the total size of attachments is > MB limit, log the messages
+      //  // You can change this value as per requirement.
+      //  if (size >= parseInt(sizeLimit))
+      //  {
+      //  }
+      //  else
+      //  {
+      //    Logger.log("Message not being added because it's not >= " + sizeLimit + ".  Actual Size: " + size);
+      //  }
+      //}
     }
   }
   Logger.log( "Done tagging large emails.  Finished within time limit." );

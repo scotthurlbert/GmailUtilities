@@ -400,7 +400,7 @@ function messageToHtml(messages, opts, folder)
         // Fill in the altDict so we can pass it to embedInlineImages_() // Logger.log( "Attempting to add to altDict: CID: " + images[x] + ": " + imageDict[images[x]].status + ", " + imageDict[images[x]].alt );
         if( imageVal && imageVal.alt && imageVal.stylename )
         {
-          Logger.log( "ADDING ALTTEXT TO THE ALTDICT: " + imageVal.alt );
+          // Logger.log( "ADDING ALTTEXT TO THE ALTDICT: " + imageVal.alt );
           altDict[imageVal.alt] = imageVal;
         }
 

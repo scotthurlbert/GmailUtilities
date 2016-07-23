@@ -49,31 +49,10 @@ function tag_Large_Gmail_Messages()
       }
       label.addToThread(threads[i]);
       processed++;
-      //var messages = threads[i].getMessages();
-      //for (var m=0; m<messages.length; m++)
-      //{
-      //  var size = getMessageSize(messages[m].getAttachments());      
-      //  // If the total size of attachments is > MB limit, log the messages
-      //  // You can change this value as per requirement.
-      //  if (size >= parseInt(sizeLimit))
-      //  {
-      //  }
-      //  else
-      //  {
-      //    Logger.log("Message not being added because it's not >= " + sizeLimit + ".  Actual Size: " + size);
-      //  }
-      //}
     }
   }
   var msg = "Messages labeled: " + processed + " of " + totalToProcess;
-  if( timedOut )
-  {
-    Logger.log("Time's up. " + msg );
-  }
-  else
-  {
-    Logger.log( "Done tagging large emails. " + msg );
-  }
+  Logger.log( (timedOut ? "Time's up. " : "Done tagging large emails. " ) + msg );
 }
 
 // Adapted from:
@@ -93,8 +72,8 @@ function save_Gmail_as_PDF()
   var timedOut = false;
   var processed = 0;
   var totalToProcess = 0;
-  //var label = GmailApp.getUserLabelByName("Save as PDF");  // inlineimage
-  var label = GmailApp.getUserLabelByName("inlineimage");  // 
+  var label = GmailApp.getUserLabelByName("Save as PDF"); 
+  // var label = GmailApp.getUserLabelByName("inlineimage");  // 
   var labelAfter = GmailApp.getUserLabelByName("Saved To PDF");  
   if(labelAfter == null)
   {
@@ -124,32 +103,12 @@ function save_Gmail_as_PDF()
       var attachments = message.getAttachments();
       var inlineimages = message.inlineImages;
       
-      Logger.log( "Creating message: " + subject );
+      // Logger.log( "Creating message: " + subject );
       
       var jsonTextFormatted = getInfoText( message, threads[i] );
       
-      //Logger.log(message.inlineImages);
-      //Logger.log(message.getRawContent());
-      //body = embedInlineImages_(body, message.getRawContent());
-
-      //if( message.inlineImages != null )
-      //{
-      //  Logger.log( "inlineImages" );
-      //  body = embedInlineImages_(body, message.getRawContent());
-      //}
-      
       for(var j = 1;j<messages.length;j++)
       {
-        //if( message.inlineImages != null )
-        //{
-        //  body += embedInlineImages_(messages[j].getBody(), messages[j].getRawContent());
-        //}
-        //else
-        //{
-        //  body += messages[j].getBody();
-        //}
-        //body += messages[j].getBody();
-        
         var temp_attach = messages[j].getAttachments();
         if(temp_attach.length>0)
         {
@@ -159,13 +118,6 @@ function save_Gmail_as_PDF()
           }
         }
       }
-      
-      // Create an HTML File from the Message Body
-      //var bodydochtml = DriveApp.createFile(subject+'.html', body, "text/html")
-      //var bodyId=bodydochtml.getId();
- 
-      // Convert the HTML to PDF
-      //var bodydocpdf = bodydochtml.getAs('application/pdf');
       
       var gmailFolders = DriveApp.getFoldersByName( "Gmail PDFs" );
       var gmailFolder = gmailFolders.next();
@@ -184,69 +136,36 @@ function save_Gmail_as_PDF()
             filename: null
           };
       
-      // create a pdf of the message
-      //var pdf = messageToPdf(threads[i], opts, folder);
-
+      // create an html file of the message
       var html = messageToHtml(threads[i], opts, folder )
-      var pdf = html.getAs('application/pdf');
-
-
-      // prefix the pdf filename with a date string
-      pdf.setName(formatDate(message, 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
-      
-      // create the file
-      folder.createFile(pdf);
-      
-      
       html.setName( subject + ".html" );
       // create the file
       folder.createFile(html);
 
-      /*
-      for( var k = 0; k < messages.length; k++ )
-      {
-        // create a pdf of the message
-        var pdf = messageToPdf(messages[k]);
-
-        // prefix the pdf filename with a date string
-        pdf.setName(formatDate(messages[k], 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
-
-        folder.createFile(pdf);
-
-      }
-      */
+      // create a pdf of the message
+      var pdf = html.getAs('application/pdf');
+      // prefix the pdf filename with a date string
+      pdf.setName(formatDate(message, 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
+      // create the file
+      folder.createFile(pdf);
       
       if(attachments.length > 0)
       {
         for (var j = 0; j < attachments.length; j++) 
         {
           folder.createFile(attachments[j]);
-          // Utilities.sleep(1000);
         }
       }
-      //else
-      //{
-      //  DriveApp.createFile(bodydocpdf);
-      //}      
-      //folder.createFile(bodydocpdf);
-      //folder.createFile(pdf);
+
       folder.createFile("info.json", jsonTextFormatted, "application/json" );
       
-      //DriveApp.getFileById(bodyId).setTrashed(true);
-      //label.removeFromThread(threads[i]);
+      label.removeFromThread(threads[i]);
       labelAfter.addToThread(threads[i]);
       processed++;
     }
   }
   var msg = "Messages saved: " + processed + " of " + totalToProcess;
-  if( timedOut )
-  {
-    Logger.log("Time's up. " + msg );
-  }
-  else
-  {
-    Logger.log( "Done saving to g-drive. " + msg );
-  }
+  Logger.log( (timedOut ? "Time's up. " : "Done saving to g-drive. " ) + msg );
 }
 
 // Adapted from:
@@ -275,7 +194,6 @@ function autoDeleteMails( labelToClean, numberOfDays )
       GmailApp.moveThreadsToTrash(GmailApp.search(mySearch, 0, batchSize));
     }  
   }
-  // Logger.log( "done: auto_delete_mails( " + labelToClean + ", " + numberOfDays + " )" );
 }
 
 function getInfo( pMessage, pThread )
@@ -357,8 +275,6 @@ function getMessageSize(att)
     //size += att[i].getBytes().length;
     size += att[i].getSize(); // Better and faster than getBytes()
   }
-  // Wait for a second to avoid hitting the system limit
-  // Utilities.sleep(1000);
   return Math.round(size*100/(1024*1024))/100;
 }
 
@@ -424,6 +340,12 @@ function messageToPdf(messages, opts, folder)
  * @param {GmailMessage|GmailThread} messages GmailMessage or GmailThread object (or an array of such objects)
  * @param {Object} options
  * @return {Blob}
+ *
+ * This method works by extracting information about inline images, either the realattid or the alt attribute's text.
+ * These two values are used to swap any existing img tag with one that points at a style that contain the image as
+ * a content value.  The image either retrieved from the original email or downloaded from the remote host.  Then the 
+ * image is converted to base64 and encoded within the HTML style.
+ * 
  */
 function messageToHtml(messages, opts, folder) 
 {
@@ -443,7 +365,8 @@ function messageToHtml(messages, opts, folder)
   {
     messages = isa_(messages, 'GmailThread') ? messages.getMessages() : [messages];
   }
-  if (!messages.every(function(obj){ return isa_(obj, 'GmailMessage'); })) {
+  if (!messages.every(function(obj){ return isa_(obj, 'GmailMessage'); })) 
+  {
     throw "Argument must be of type GmailMessage or GmailThread.";
   }
   var name = opts.filename || sanitizeFilename_(messages[messages.length-1].getSubject()) + '.html';
@@ -460,16 +383,13 @@ function messageToHtml(messages, opts, folder)
 
     if (opts.embedInlineImages) 
     {
-      //TODO: REMOVE
-      folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
-      
       extractInlineImages( message.getRawContent(), imageDict, images, folder );
+      
       // The idea of using styles to hold the images came from:
       // http://stackoverflow.com/questions/29187840/base64-inline-image-use-more-than-once
       for( var x=0; x < images.length; x++ )
       {
-        
-        Logger.log( "Adding to imageDict: CID: " + images[x] + ": " + imageDict[images[x]] + ", stylename: " + imageDict[images[x]].stylename || "no-style-found" );
+        // Build the styles for including below when we create the html string. // Logger.log( "Adding to imageDict: CID: " + images[x] + ": " + imageDict[images[x]] + ", stylename: " + imageDict[images[x]].stylename || "no-style-found" );
         var imageVal = imageDict[images[x]];
         if( imageVal && imageVal.stylename && imageVal.status && imageVal.status != "published" )
         {
@@ -477,7 +397,7 @@ function messageToHtml(messages, opts, folder)
           imageDict[images[x]].status = "published";
         }
         
-        Logger.log( "Attempting to add to altDict: CID: " + images[x] + ": " + imageDict[images[x]].status + ", " + imageDict[images[x]].alt );
+        // Fill in the altDict so we can pass it to embedInlineImages_() // Logger.log( "Attempting to add to altDict: CID: " + images[x] + ": " + imageDict[images[x]].status + ", " + imageDict[images[x]].alt );
         if( imageVal && imageVal.alt && imageVal.stylename )
         {
           Logger.log( "ADDING ALTTEXT TO THE ALTDICT: " + imageVal.alt );
@@ -487,8 +407,6 @@ function messageToHtml(messages, opts, folder)
       }
     }
   }
-  
-  // Logger.log( "ImageStyles finished: " + mystuff );
   
   var html = '<html>\n' +
       '<style type="text/css">\n' +
@@ -504,7 +422,6 @@ function messageToHtml(messages, opts, folder)
       'body>div.email-attachments{font-size:0.85em;color:#999}\n' +
        imageStyles +
       '</style>\n<body>\n';
-  
   
   for( var m=0; m < messages.length; m++ )
   {
@@ -567,7 +484,7 @@ function messageToHtml(messages, opts, folder)
       }
     }
     html += body;
-    Logger.log( "The length of the body string is: " + body.length );
+    // Logger.log( "The length of the body string is: " + body.length );
   }
   html += '</body>\n</html>';
   return Utilities.newBlob(html, 'text/html', name);
@@ -580,7 +497,8 @@ function messageToHtml(messages, opts, folder)
  * @param {string} email
  * @return {string} name or domain name
  */
-function emailGetName(email) {
+function emailGetName(email) 
+{
   return email.replace(/^<?(?:[^<\(]+@)?([^<\(,]+?|)(?:\s?[\(<>,].*|)$/i, '$1') || 'Unknown';
 }
 
@@ -612,7 +530,8 @@ function emailGetAvatar(email) {
  * @param {string} html
  * @return {string} Html with embedded images
  */
-function embedHtmlImages_(html) {
+function embedHtmlImages_(html) 
+{
   // process all img tags
   html = html.replace(/(<img[^>]+src=)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, src) {
     // Logger.log('Processing image src: ' + src);
@@ -646,7 +565,7 @@ function extractInlineImages( raw, imageDict, images, folder )
   raw.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1.*?>/gi, function(m, q, cid) 
   {
     cid = cid.replace("\r\n", "").replace("=", "");
-    Logger.log("Image with cid of: " + cid + ", and the match: " + m );
+    // Logger.log("Image with cid of: " + cid + ", and the match: " + m );
     var newImageVal = 
     { 
       "status" : "no file yet", 
@@ -659,25 +578,17 @@ function extractInlineImages( raw, imageDict, images, folder )
     var imageVal = imageDict[cid] || newImageVal;
     
     var imageTag = m.replace("=\r", "").replace("=\n", "").replace("=\r\n", "").replace("\r\n", "").replace("\r", "").replace("\n", "");
-    Logger.log( "ImageTag after replacing linefeeds: " + imageTag );
-    imageTag = imageTag.replace(/=3D/gi, "REALEQUALS");
-    Logger.log( "ImageTag before replacing equals: " + imageTag );
-    imageTag = imageTag.replace("=", "");
-    imageTag = imageTag.replace(/REALEQUALS/gi, "=");
-    Logger.log( "ImageTag after replacing equals: " + imageTag );
+    imageTag = imageTag.replace(/=3D/gi, "REALEQUALS").replace("=", "").replace(/REALEQUALS/gi, "=");
     
-    Logger.log( "Looking for alt tag in: " + imageTag );
-    
+    // See if there is an alt tag
     if( imageTag.indexOf( "alt=" ) > 0 )
     {
+      // Extract the alt attribute's text.  If we can't match the img tag to a style by realattid, we'll try by whatever is in the alt attributes.
       var altText = imageTag.replace( /(.*?<img[^>]+alt=)(["'])(.+)\2.*/gi, "$3" );
-      Logger.log( "ALT TAG FOUND: " + altText );
       imageVal.alt = altText;
     }
-
     imageDict[cid] = imageVal;
     images.push(cid);
-    
     return m;
   });
 
@@ -707,19 +618,15 @@ function extractInlineImages( raw, imageDict, images, folder )
       var imageBlob = Utilities.newBlob(Utilities.base64Decode(blobText), contentType, cid);
       file = folder.createFile(imageBlob);
       var renderedDataUri = renderDataUri_( imageBlob );
-      // ToDo: create a clean cid for use as the stylename
-      
       var stylename = cidToStylename(cid);
-      
       // This will preserve the ALT name for this CID if there is one.
       var imageVal = imageDict[cid] || {};
       imageVal.status = "ready";
       imageVal.cid = cid;
       imageVal.style = "." + stylename + "{ content: url('" + renderedDataUri + "'); } ",
       imageVal.stylename = stylename
-
       imageDict[cid] = imageVal;
-      Logger.log( "Added image for cid: " + cid + ", imageDict[cid].status: " + imageDict[cid].status + ", stylename: " + imageDict[cid].stylename );
+      // Logger.log( "Added image for cid: " + cid + ", imageDict[cid].status: " + imageDict[cid].status + ", stylename: " + imageDict[cid].stylename );
     }
     return cid;
   }).filter(function(i){return i});
@@ -745,57 +652,11 @@ function cidToStylename( pCid )
  */
 function embedInlineImages_(html, raw, imageDict, altDict, images ) 
 {
-  /*
-  var images = [];
-  var imageDict = {};
-  
-   //var rObj = {};
-   //rObj[obj.key] = obj.value;
-   //return rObj;
-
-  // locate all inline content ids
-  raw.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1/gi, function(m, q, cid) 
-  {
-    cid = cid.replace("\r\n", "").replace("=", "");
-    Logger.log("Image with cid of: " + cid );
-    imageDict[cid] = {};
-    images.push(cid);
-    return m;
-  });
-
-  // extract all inline images
-  images = images.map(function(cid) 
-  {
-    var cidIndex = raw.search(new RegExp("Content-ID ?:.*?" + cid, 'i'));
-    if (cidIndex === -1) return null;
-
-    var prevBoundaryIndex = raw.lastIndexOf("\r\n--", cidIndex);
-    var nextBoundaryIndex = raw.indexOf("\r\n--", prevBoundaryIndex+1);
-    var part = raw.substring(prevBoundaryIndex, nextBoundaryIndex);
-
-    var encodingLine = part.match(/Content-Transfer-Encoding:.*?\r\n/i)[0];
-    var encoding = encodingLine.split(":")[1].trim();
-    if (encoding != "base64") return null;
-
-    var contentTypeLine = part.match(/Content-Type:.*?\r\n/i)[0];
-    var contentType = contentTypeLine.split(":")[1].split(";")[0].trim();
-
-    var startOfBlob = part.indexOf("\r\n\r\n");
-    var blobText = part.substring(startOfBlob).replace("\r\n","");
-
-    imageDict[cid] = Utilities.newBlob(Utilities.base64Decode(blobText), contentType, cid);
-    return Utilities.newBlob(Utilities.base64Decode(blobText), contentType, cid);
-  }).filter(function(i){return i});
-
-  Logger.log("sleeping for 30 seconds...");
-  Utilities.sleep(30000);
-  Logger.log("done sleeping." );
-  */
-  
   // process all img tags which reference "attachments"
   html = html.replace(/(<img[^>]+src=)(["'])(\?view=att(?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, src) 
   {
-    Logger.log( "replacing tag: " + tag + ", with match: " + m + ", source: " + src + ", q: " + q );
+    // Logger.log( "replacing tag: " + tag + ", with match: " + m + ", source: " + src + ", q: " + q );
+    // Extract the attatchment id.
 	var start = src.indexOf( "realattid=" ) + 10;
     var key1 = src.substring( start );
     var key = key1.substring( 0, key1.indexOf( "&amp;" ) );
@@ -804,24 +665,8 @@ function embedInlineImages_(html, raw, imageDict, altDict, images )
     {
       if( imageVal.stylename )
       {
-        Logger.log( "Using imageDict for image! " + key + ", stylename: " + imageVal.stylename );
-        //return tag + q + ( renderDataUri_( imageDict[key] ) || src ) + q;
-        /*
-        var files = DriveApp.getFilesByName( key );
-        while( files.hasNext() ) 
-        {
-        var file = files.next();
-        Logger.log( "renderDataUri for file " + file.getName() );
-        var fileBlob = file.getBlob();
-        Logger.log( "The size of our image blob is: " + fileBlob.getBytes().length + " bytes." );
-        var renderedDataUri = renderDataUri_( fileBlob );
-        Logger.log( "The length of the renderedDataUri is: " + renderedDataUri.length );
-        return tag + q + ( renderedDataUri || src ) + q;
-        // return tag + q + key + q;
-        }
-        */
+        // Logger.log( "Using imageDict for image! " + key + ", stylename: " + imageVal.stylename );
         return tag + q + "#" + q + " class=" + q + imageVal.stylename + q;
-        //<img src="#" class="myImage" />  
       }
       else
       {
@@ -833,23 +678,21 @@ function embedInlineImages_(html, raw, imageDict, altDict, images )
       Logger.log( "Could not find an entry in imageDict for key: " + key + ", imageVal: " + imageVal );
     }
     return tag + q + src + q;
-    // return tag + q + (renderDataUri_(images.shift() ) || src ) + q;
   });
   
   // process all image tags by the alt-text.  This is a fall back, and less reliable.
   // process all img tags which reference "attachments"
   html = html.replace(/(<img[^>]+src=)(["'])(\?view=att).+?>/gi, function(m, tag, q, src) 
   {
-    Logger.log( "ALT tag: " + tag + ", match: " + m + ", source: " + src + ", q: " + q );
-    
+    // Logger.log( "ALT tag: " + tag + ", match: " + m + ", source: " + src + ", q: " + q );
     if( m.indexOf( "alt=" ) > 0 )
     {
       var altText = m.replace( /(.*?<img[^>]+alt=)(["'])(.+)\2.*/gi, "$3" );
-      Logger.log( "ALT TAG FOUND during replacement: " + altText );
+      // Logger.log( "ALT TAG FOUND during replacement: " + altText );
       if( altDict[altText] && altDict[altText].stylename )
       {
         var imageVal = altDict[altText];
-        Logger.log( "Using alt tag [" + altText + "] pointing to style: " + imageVal.stylename );
+        // Logger.log( "Using alt tag [" + altText + "] pointing to style: " + imageVal.stylename );
         return "<img src=" + q + "#" + q + " class=" + q + imageVal.stylename + q + ">";
       }
       else
@@ -857,28 +700,9 @@ function embedInlineImages_(html, raw, imageDict, altDict, images )
         Logger.log( "No entry found in altDict for: " + altText );
       }
     }
-    
-    /*
-	var start = src.indexOf( "realattid=" ) + 10;
-    var key1 = src.substring( start );
-    var key = key1.substring( 0, key1.indexOf( "&amp;" ) );
-    var imageVal = imageDict[key];
-    if( imageVal && imageVal.status == "ready" )
-    {
-      Logger.log( "Using imageDict for image! " + key + ", stylename: " + imageVal.stylename );
-      return tag + q + "#" + q + " class=" + q + imageVal.stylename + q;
-    }
-    else
-    {
-      Logger.log( "Could not find an entry in imageDict for key: " + key );
-    }
-    return tag + q + src + q;
-    */
     return m;
   });
-
   return html;
- 
 }
 
 /**
@@ -911,11 +735,15 @@ function renderDataUri_(image)
  * @param {string} url
  * @return {Blob}
  */
-function fetchRemoteFile_(url) {
-  try {
+function fetchRemoteFile_(url)
+{
+  try 
+  {
     var response = UrlFetchApp.fetch(url, {'muteHttpExceptions': true});
     return response.getResponseCode() == 200 ? response.getBlob() : null;
-  } catch (e) {
+  } 
+  catch (e) 
+  {
     return null;
   }
 }
@@ -926,7 +754,8 @@ function fetchRemoteFile_(url) {
  * @param {string} url
  * @return {boolean}
  */
-function isValidUrl_(url) {
+function isValidUrl_(url) 
+{
   return /^(https?|ftp):\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?(((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)(:\d*)?)(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)?(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url);
 }
 
@@ -936,7 +765,8 @@ function isValidUrl_(url) {
  * @param {string} filename
  * @return {string}
  */
-function sanitizeFilename_(filename) {
+function sanitizeFilename_(filename) 
+{
   return filename.replace(/[\/\?<>\\:\*\|":\x00-\x1f\x80-\x9f]/g, '');
 }
 
@@ -946,7 +776,8 @@ function sanitizeFilename_(filename) {
  * @param {string} emails
  * @return {string}
  */
-function formatEmails_(emails) {
+function formatEmails_(emails) 
+{
   var pattern = new RegExp(/<(((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?)>/i);
   return emails.replace(pattern, function(match, handle) {
     return '<a href="mailto:' + handle + '">' + handle + '</a>';
@@ -961,7 +792,8 @@ function formatEmails_(emails) {
  * @param {string} class
  * @return {boolean}
  */
-function isa_(obj, class) {
+function isa_(obj, class) 
+{
   return typeof obj == 'object' && typeof obj.constructor == 'undefined' && obj.toString() == class;
 }
 
@@ -971,9 +803,12 @@ function isa_(obj, class) {
  * @param {Object} options
  * @param {Object} defaults
  */
-function defaults_(options, defaults) {
-  for (attr in defaults) {
-    if (!options.hasOwnProperty(attr)) {
+function defaults_(options, defaults) 
+{
+  for (attr in defaults) 
+  {
+    if (!options.hasOwnProperty(attr)) 
+    {
       options[attr] = defaults[attr];
     }
   }
@@ -984,7 +819,8 @@ function defaults_(options, defaults) {
  *
  * @return {string}
  */
-function localTimezone_() {
+function localTimezone_() 
+{
   var timezone = new Date().toTimeString().match(/\(([a-z0-9]+)\)/i);
   return timezone.length ? timezone[1] : 'GMT';
 }
@@ -995,8 +831,10 @@ function localTimezone_() {
  * @param {string} str
  * @return {string}
  */
-function md5_(str) {
-  return Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, str).reduce(function(str,chr) {
+function md5_(str) 
+{
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, str).reduce(function(str,chr) 
+  {
     chr = (chr < 0 ? chr + 256 : chr).toString(16);
     return str + (chr.length==1?'0':'') + chr;
   },'');

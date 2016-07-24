@@ -14,6 +14,25 @@ function check_auto_delete_mails()
   autoDeleteMails( "AutoClean/AutoClean365", 365 );
 }
 
+// This came from:
+// http://www.labnol.org/internet/google-scripts/28281/
+
+function check_website()
+{
+	var url = "http://levis.com/";
+	var response = UrlFetchApp.fetch( url, { muteHttpExceptions: true } );
+	if( response.getResponseCode() != 200 )
+	{
+		Logger.log( "The website is down." );
+		GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Issue with website", response.getContentText() );
+	}
+	else
+	{
+		Logger.log( "The website is up." );
+		// GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Website is up", response.getContentText() );
+	}
+}
+
 // Inspired by:
 // https://ctrlq.org/code/19040-gmail-size-search
 
@@ -66,6 +85,9 @@ function tag_Large_Gmail_Messages()
 // of bugs and issues - it was definetly a good start, but it was massively changed.
 // http://pixelcog.com/blog/2015/gmail-to-pdf/
 
+// Any email threads/messages labeled as "Save as PDF" will be exported to the GDrive folder "Gmail PDFs".
+// Any failures will be removed from the label "Save as PDF" and added to the label "Save as PDF Failed".
+// After exporting as a PDF, the email thread/message will be removed from "Save as PDF" and added to "Saved To PDF".
 function save_Gmail_as_PDF()
 {
   var start = new Date();
@@ -74,10 +96,15 @@ function save_Gmail_as_PDF()
   var totalToProcess = 0;
   var label = GmailApp.getUserLabelByName("Save as PDF"); 
   // var label = GmailApp.getUserLabelByName("inlineimage");  // 
-  var labelAfter = GmailApp.getUserLabelByName("Saved To PDF");  
+  var labelAfter = GmailApp.getUserLabelByName("Saved To PDF");
+  var labelFailed = GmailApp.getUserLabelByName("Save as PDF Failed");
   if(labelAfter == null)
   {
     GmailApp.createLabel('Saved To PDF');
+  }
+  if(labelFailed == null)
+  {
+    GmailApp.createLabel('Save as PDF Failed');
   }
   if(label == null)
   {
@@ -90,41 +117,43 @@ function save_Gmail_as_PDF()
     Logger.log( "Saving " + threads.length + " emails to google drive." );
     for (var i = 0; i < threads.length; i++) 
     {
-      if( isTimeUp(start) ) 
+      if( isTimeUpPdf(start) ) 
       {
         timedOut = true;
         break;
       }
-      var messages = threads[i].getMessages();  
-      var message = messages[0];
-      var body    = message.getBody();
-      var dateTime = message.getDate();
-      var subject = dateTime.toISOString().substring(0, 19).replace(/:/g, '.').replace(/-/g, '') + ", " + message.getFrom() + ", " + message.getSubject();
-      var attachments = message.getAttachments();
-      var inlineimages = message.inlineImages;
-      
-      // Logger.log( "Creating message: " + subject );
-      
-      var jsonTextFormatted = getInfoText( message, threads[i] );
-      
-      for(var j = 1;j<messages.length;j++)
+      try
       {
-        var temp_attach = messages[j].getAttachments();
-        if(temp_attach.length>0)
+        var messages = threads[i].getMessages();  
+        var message = messages[0];
+        var body    = message.getBody();
+        var dateTime = message.getDate();
+        var subject = dateTime.toISOString().substring(0, 19).replace(/:/g, '.').replace(/-/g, '') + ", " + message.getFrom() + ", " + message.getSubject();
+        var attachments = message.getAttachments();
+        var inlineimages = message.inlineImages;
+      
+        // Logger.log( "Creating message: " + subject );
+      
+        var jsonTextFormatted = getInfoText( message, threads[i] );
+      
+        for(var j = 1;j<messages.length;j++)
         {
-          for(var k =0;k<temp_attach.length;k++)
+          var temp_attach = messages[j].getAttachments();
+          if(temp_attach.length>0)
           {
-            attachments.push(temp_attach[k]);
+            for(var k =0;k<temp_attach.length;k++)
+            {
+              attachments.push(temp_attach[k]);
+            }
           }
         }
-      }
       
-      var gmailFolders = DriveApp.getFoldersByName( "Gmail PDFs" );
-      var gmailFolder = gmailFolders.next();
-      var folder = gmailFolder.createFolder(subject)
-      gmailFolder.addFolder(folder);
-      
-      var opts = 
+        var gmailFolders = DriveApp.getFoldersByName( "Gmail PDFs" );
+        var gmailFolder = gmailFolders.next();
+        var folder = gmailFolder.createFolder(subject)
+        gmailFolder.addFolder(folder);
+
+        var opts = 
           {
             includeHeader: true,
             includeAttachments: false, // was true
@@ -136,34 +165,41 @@ function save_Gmail_as_PDF()
             filename: null
           };
       
-      // create an html file of the message
-      var html = messageToHtml(threads[i], opts, folder )
-      html.setName( subject + ".html" );
-      // create the file
-      folder.createFile(html);
-
-      // create a pdf of the message
-      var pdf = html.getAs('application/pdf');
-      // prefix the pdf filename with a date string
-      pdf.setName(formatDate(message, 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
-      // create the file
-      folder.createFile(pdf);
-      
-      if(attachments.length > 0)
-      {
-        for (var j = 0; j < attachments.length; j++) 
+        // create an html file of the message
+        var html = messageToHtml(threads[i], opts, folder )
+        html.setName( subject + ".html" );
+        // create the file
+        folder.createFile(html);
+        
+        // create a pdf of the message
+        var pdf = html.getAs('application/pdf');
+        // prefix the pdf filename with a date string
+        pdf.setName(formatDate(message, 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
+        // create the file
+        folder.createFile(pdf);
+        
+        if(attachments.length > 0)
         {
-          folder.createFile(attachments[j]);
+          for (var j = 0; j < attachments.length; j++) 
+          {
+            folder.createFile(attachments[j]);
+          }
         }
-      }
 
-      folder.createFile("info.json", jsonTextFormatted, "application/json" );
+        folder.createFile("info.json", jsonTextFormatted, "application/json" );
       
-      label.removeFromThread(threads[i]);
-      labelAfter.addToThread(threads[i]);
-      processed++;
-    }
-  }
+        label.removeFromThread(threads[i]);
+        labelAfter.addToThread(threads[i]);
+        processed++;
+      }
+      catch(e)
+      {
+        Logger.log( "ERROR, unable to save as PDF: " + e );
+        label.removeFromThread(threads[i]);
+        labelFailed.addToThread(threads[i]);
+      }
+    } // for (var i = 0; i < threads.length; i++) 
+  } // if labled for "Save as PDF"
   var msg = "Messages saved: " + processed + " of " + totalToProcess;
   Logger.log( (timedOut ? "Time's up. " : "Done saving to g-drive. " ) + msg );
 }
@@ -176,7 +212,14 @@ function isTimeUp(pStart)
   var now = new Date();
   return now.getTime() - pStart.getTime() > 300000; // 5 minutes
 }
- 
+
+// Need a special shorter time, because PDFs sometimes take a few mintues
+function isTimeUpPdf(pStart) 
+{
+  var now = new Date();
+  return now.getTime() - pStart.getTime() > 210000; // 3.5 minutes
+}
+
 function autoDeleteMails( labelToClean, numberOfDays ) 
 {  
   var label = GmailApp.getUserLabelByName( labelToClean );  
@@ -381,6 +424,9 @@ function messageToHtml(messages, opts, folder)
     var message = messages[m],
         body = message.getBody();
 
+    // Create a raw file.  Comment this out, but leave for debugging.
+    // folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
+
     if (opts.embedInlineImages) 
     {
       extractInlineImages( message.getRawContent(), imageDict, images, folder );
@@ -400,10 +446,8 @@ function messageToHtml(messages, opts, folder)
         // Fill in the altDict so we can pass it to embedInlineImages_() // Logger.log( "Attempting to add to altDict: CID: " + images[x] + ": " + imageDict[images[x]].status + ", " + imageDict[images[x]].alt );
         if( imageVal && imageVal.alt && imageVal.stylename )
         {
-          // Logger.log( "ADDING ALTTEXT TO THE ALTDICT: " + imageVal.alt );
           altDict[imageVal.alt] = imageVal;
         }
-
       }
     }
   }
@@ -419,9 +463,11 @@ function messageToHtml(messages, opts, folder)
       'body>dl.email-meta dd.avatar{float:right}' +
       'body>dl.email-meta dd.avatar img{max-height:72px;max-width:72px;border-radius:36px}' +
       'body>dl.email-meta dd.strong{font-weight:bold}' +
-      'body>div.email-attachments{font-size:0.85em;color:#999}\n' +
-       imageStyles +
-      '</style>\n<body>\n';
+      'body>div.email-attachments{font-size:0.85em;color:#999}\n';
+  
+  html = html + imageStyles;
+
+  html = html + '</style>\n<body>\n';
   
   for( var m=0; m < messages.length; m++ )
   {
@@ -450,13 +496,13 @@ function messageToHtml(messages, opts, folder)
               '<dt>To:</dt> <dd>' + to + '</dd>\n' +
               '</dl>\n';      
     }
-    if (opts.embedInlineImages) 
-    {
-      body = embedInlineImages_(body, message.getRawContent(), imageDict, altDict, images );
-    }
     if (opts.embedRemoteImages) 
     {
       body = embedHtmlImages_(body);
+    }
+    if (opts.embedInlineImages) 
+    {
+      body = embedInlineImages_(body, message.getRawContent(), imageDict, altDict, images );
     }
     if (opts.includeAttachments) 
     {
@@ -559,10 +605,13 @@ function embedHtmlImages_(html)
 
 function extractInlineImages( raw, imageDict, images, folder )
 {
-  // <img src="#" class="myImage" />   
-
   // locate all inline content ids
-  raw.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1.*?>/gi, function(m, q, cid) 
+  // original: raw.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1/gi, function(m, q, cid) { // extended to include up to the closing of the tag
+  
+  // Need to clean up the raw message a little or the tags get split across several (more than 3 in many cases) lines.
+  rawToCheck = raw.replace( /=\r\n/gi, "" );
+  
+  rawToCheck.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1.*?>/gi, function(m, q, cid) 
   {
     cid = cid.replace("\r\n", "").replace("=", "");
     // Logger.log("Image with cid of: " + cid + ", and the match: " + m );
@@ -596,7 +645,15 @@ function extractInlineImages( raw, imageDict, images, folder )
   images = images.map(function(cid) 
   {
     var cidIndex = raw.search(new RegExp("Content-ID ?:.*?" + cid, 'i'));
-    if (cidIndex === -1) return null;
+    if (cidIndex === -1) 
+    {
+      // Logger.log( "extractInlineImages: Could not find the 'Content-ID' value for: " + cid );
+      return null;
+    }
+    else
+    {
+      // Logger.log( "cidIndex: " + cidIndex );
+    }
 
     var prevBoundaryIndex = raw.lastIndexOf("\r\n--", cidIndex);
     var nextBoundaryIndex = raw.indexOf("\r\n--", prevBoundaryIndex+1);
@@ -612,6 +669,7 @@ function extractInlineImages( raw, imageDict, images, folder )
     var startOfBlob = part.indexOf("\r\n\r\n");
     var blobText = part.substring(startOfBlob).replace("\r\n","");
 
+    // Logger.log( "Checking for file named: " + cid );
     var files = folder.getFilesByName( cid );
     if( !files.hasNext() ) 
     {
@@ -627,6 +685,10 @@ function extractInlineImages( raw, imageDict, images, folder )
       imageVal.stylename = stylename
       imageDict[cid] = imageVal;
       // Logger.log( "Added image for cid: " + cid + ", imageDict[cid].status: " + imageDict[cid].status + ", stylename: " + imageDict[cid].stylename );
+    }
+    else
+    {
+      // Logger.log( "File '" + cid + "' already exists." );
     }
     return cid;
   }).filter(function(i){return i});
@@ -675,7 +737,7 @@ function embedInlineImages_(html, raw, imageDict, altDict, images )
     }
     else
     {
-      Logger.log( "Could not find an entry in imageDict for key: " + key + ", imageVal: " + imageVal );
+      Logger.log( "Could not find an entry in imageDict for key: " + key );
     }
     return tag + q + src + q;
   });

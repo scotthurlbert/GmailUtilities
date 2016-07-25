@@ -19,18 +19,24 @@ function check_auto_delete_mails()
 
 function check_website()
 {
-	var url = "http://levis.com/";
-	var response = UrlFetchApp.fetch( url, { muteHttpExceptions: true } );
-	if( response.getResponseCode() != 200 )
-	{
-		Logger.log( "The website is down." );
-		GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Issue with website", response.getContentText() );
-	}
-	else
-	{
-		Logger.log( "The website is up." );
-		// GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Website is up", response.getContentText() );
-	}
+  var url = "http://levis.com/";
+  url = "http://50.184.103.121/HomeCenter/Home/ShowNotification?location=livingroom&title=from gcs&message=nice work"
+  var response = UrlFetchApp.fetch( url, { muteHttpExceptions: true } );
+  if( response.getResponseCode() != 200 )
+  {
+    Logger.log( "The website is down." );
+    GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Issue with website", response.getContentText() );
+  }
+  else
+  {
+    Logger.log( "The website is up." );
+    // GmailApp.sendEmail( Session.getActiveUser().getEmail(), "Website is up", response.getContentText() );
+  }
+}
+
+function display_message( pTitle, pMessage )
+{
+  // Insert a method for displaying remote messages
 }
 
 // Inspired by:
@@ -112,9 +118,11 @@ function save_Gmail_as_PDF()
   }
   else
   {
-    var threads = label.getThreads();
+    //var threads = label.getThreads();
+    var threads = GmailApp.search('label:save-as-pdf -label:okayToBeLarge -label:save-as-pdf-failed');
     totalToProcess = threads.length;
     Logger.log( "Saving " + threads.length + " emails to google drive." );
+    display_message( "Saving to g-drive.", "Starting with " + threads.length + " emails." )
     for (var i = 0; i < threads.length; i++) 
     {
       if( isTimeUpPdf(start) ) 
@@ -195,12 +203,14 @@ function save_Gmail_as_PDF()
       catch(e)
       {
         Logger.log( "ERROR, unable to save as PDF: " + e );
+        display_message( "ERROR: saving to g-drive.", "Unable to save message: " + e )
         label.removeFromThread(threads[i]);
         labelFailed.addToThread(threads[i]);
       }
     } // for (var i = 0; i < threads.length; i++) 
   } // if labled for "Save as PDF"
   var msg = "Messages saved: " + processed + " of " + totalToProcess;
+  display_message( (timedOut ? "Time's up. ": "") + "Done saving to g-drive.", "Messages saved: " + processed + " of " + totalToProcess )
   Logger.log( (timedOut ? "Time's up. " : "Done saving to g-drive. " ) + msg );
 }
 
@@ -425,7 +435,7 @@ function messageToHtml(messages, opts, folder)
         body = message.getBody();
 
     // Create a raw file.  Comment this out, but leave for debugging.
-    // folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
+    folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
 
     if (opts.embedInlineImages) 
     {
@@ -556,14 +566,17 @@ function emailGetName(email)
  * @param {string} email
  * @return {Blob|boolean} Blob object or false
  */
-function emailGetAvatar(email) {
+function emailGetAvatar(email) 
+{
   re = /[a-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+\/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/gi
-  if (!(email = email.match(re)) || !(email = email[0].toLowerCase())) {
+  if (!(email = email.match(re)) || !(email = email[0].toLowerCase())) 
+  {
     return false;
   }
   var domain = email.split('@')[1];
   var avatar = fetchRemoteFile_('http://www.gravatar.com/avatar/' + md5_(email) + '?s=128&d=404');
-  if (!avatar && ['gmail','hotmail','yahoo.'].every(function(s){ return domain.indexOf(s) == -1 })) {
+  if (!avatar && ['gmail','hotmail','yahoo.'].every(function(s){ return domain.indexOf(s) == -1 })) 
+  {
     avatar = fetchRemoteFile_('http://' + domain + '/apple-touch-icon.png') ||
              fetchRemoteFile_('http://' + domain + '/apple-touch-icon-precomposed.png');
   }
@@ -579,20 +592,25 @@ function emailGetAvatar(email) {
 function embedHtmlImages_(html) 
 {
   // process all img tags
-  html = html.replace(/(<img[^>]+src=)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, src) {
+  html = html.replace(/(<img[^>]+src=)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, src) 
+  {
     // Logger.log('Processing image src: ' + src);
     return tag + q + (renderDataUri_(src) || src) + q;
   });
   // process all style attributes
-  html = html.replace(/(<[^>]+style=)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, style) {
-    style = style.replace(/url\((\\?["']?)([^\)]*)\1\)/gi, function(m, q, url) {
+  html = html.replace(/(<[^>]+style=)(["'])((?:(?!\2)[^\\]|\\.)*)\2/gi, function(m, tag, q, style) 
+  {
+    style = style.replace(/url\((\\?["']?)([^\)]*)\1\)/gi, function(m, q, url) 
+    {
       return 'url(' + q + (renderDataUri_(url) || url) + q + ')';
     });
     return tag + q + style + q;
   });
   // process all style tags
-  html = html.replace(/(<style[^>]*>)(.*?)(?:<\/style>)/gi, function(m, tag, style, end) {
-    style = style.replace(/url\((["']?)([^\)]*)\1\)/gi, function(m, q, url) {
+  html = html.replace(/(<style[^>]*>)(.*?)(?:<\/style>)/gi, function(m, tag, style, end) 
+  {
+    style = style.replace(/url\((["']?)([^\)]*)\1\)/gi, function(m, q, url) 
+    {
       return 'url(' + q + (renderDataUri_(url) || url) + q + ')';
     });
     return tag + style + end;
@@ -610,7 +628,7 @@ function extractInlineImages( raw, imageDict, images, folder )
   
   // Need to clean up the raw message a little or the tags get split across several (more than 3 in many cases) lines.
   rawToCheck = raw.replace( /=\r\n/gi, "" );
-  
+
   rawToCheck.replace(/<img[^>]+src=(?:3D)?(["'])cid:((?:(?!\1)[^\\]|\\.)*)\1.*?>/gi, function(m, q, cid) 
   {
     cid = cid.replace("\r\n", "").replace("=", "");
@@ -619,7 +637,8 @@ function extractInlineImages( raw, imageDict, images, folder )
     { 
       "status" : "no file yet", 
       "alt" : "", 
-      "cid" : cid, 
+      "cid" : cid,
+      "filename" : "",
       "stylename" : null 
     };
     
@@ -670,10 +689,12 @@ function extractInlineImages( raw, imageDict, images, folder )
     var blobText = part.substring(startOfBlob).replace("\r\n","");
 
     // Logger.log( "Checking for file named: " + cid );
-    var files = folder.getFilesByName( cid );
+    var filename = getFilename( cid, contentType);
+    var files = folder.getFilesByName( filename );
     if( !files.hasNext() ) 
     {
-      var imageBlob = Utilities.newBlob(Utilities.base64Decode(blobText), contentType, cid);
+      
+      var imageBlob = Utilities.newBlob( Utilities.base64Decode(blobText), contentType, filename );
       file = folder.createFile(imageBlob);
       var renderedDataUri = renderDataUri_( imageBlob );
       var stylename = cidToStylename(cid);
@@ -681,6 +702,7 @@ function extractInlineImages( raw, imageDict, images, folder )
       var imageVal = imageDict[cid] || {};
       imageVal.status = "ready";
       imageVal.cid = cid;
+      imageVal.filename = filename;
       imageVal.style = "." + stylename + "{ content: url('" + renderedDataUri + "'); } ",
       imageVal.stylename = stylename
       imageDict[cid] = imageVal;
@@ -692,17 +714,6 @@ function extractInlineImages( raw, imageDict, images, folder )
     }
     return cid;
   }).filter(function(i){return i});
-}
-                      
-function cidToStylename( pCid )
-{
-  var stylename = pCid || "default-style-from-cidToStylename";
-  stylename = stylename.replace( /\./g, "" ).replace( /@/g, "" ).replace( /\&/g, "" );
-  stylename = stylename.replace( /\[/g, "" ).replace( /\]/g, "" );
-  stylename = stylename.replace( /\(/g, "" ).replace( /\)/g, "" );
-  stylename = stylename.replace( /\{/g, "" ).replace( /\}/g, "" );
-  stylename = stylename.replace( /\</g, "" ).replace( /\>/g, "" );
-  return stylename;
 }
 
 /**
@@ -765,6 +776,100 @@ function embedInlineImages_(html, raw, imageDict, altDict, images )
     return m;
   });
   return html;
+}
+
+function setupPolyfill()
+{
+  if( !String.prototype.endsWith )
+  {
+    String.prototype.endsWith = function(searchString, position) 
+    {
+      var subjectString = this.toString();
+      if (typeof position !== 'number' || !isFinite(position) || Math.floor(position) !== position || position > subjectString.length) 
+      {
+        position = subjectString.length;
+      }
+      position -= searchString.length;
+      var lastIndex = subjectString.indexOf(searchString, position);
+      return lastIndex !== -1 && lastIndex === position;
+    };
+  }
+  if (!String.prototype.trim) 
+  {
+    String.prototype.trim = function () 
+    {
+      return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+    };
+  }
+}
+
+function getFilename( pFilename, pContentType )
+{
+  if( !pFilename || !pContentType )
+  {
+    return pFilename;
+  }
+  setupPolyfill();
+  var ext = null;
+  if( pContentType.toUpperCase()  === "image/png".toUpperCase() )
+  {
+    ext = "png";
+  }
+  else if( pContentType.toUpperCase()  === "image/bmp".toUpperCase() )
+  {
+    ext = "bmp";
+  }
+  else if( pContentType.toUpperCase()  === "image/gif".toUpperCase() )
+  {
+    ext = "gif";
+  }
+  else if( pContentType.toUpperCase()  === "image/jpeg".toUpperCase() )
+  {
+    ext = "jpg";
+  }
+  else if( pContentType.toUpperCase()  === "image/pjpeg".toUpperCase() )
+  {
+    ext = "jpg";
+  }
+  else if( pContentType.toUpperCase()  === "image/pict".toUpperCase() )
+  {
+    ext = "jpg";
+  }
+  else if( pContentType.toUpperCase()  === "image/tiff".toUpperCase() )
+  {
+    ext = "tif";
+  }
+  else if( pContentType.toUpperCase()  === "image/x-tiff".toUpperCase() )
+  {
+    ext = "tif";
+  }
+  else if( pContentType.toUpperCase()  === "application/pdf".toUpperCase() )
+  {
+    ext = "pdf";
+  }
+  if( ext )
+  {
+    if( pFilename.trim().endsWith( "." + ext ) )
+    {
+      return pFilename.trim();
+    }
+    else
+    {
+      return pFilename.trim() + "." + ext;
+    }
+  }
+  return pFilename;
+}
+                      
+function cidToStylename( pCid )
+{
+  var stylename = pCid || "default-style-from-cidToStylename";
+  stylename = stylename.replace( /\./g, "" ).replace( /@/g, "" ).replace( /\&/g, "" );
+  stylename = stylename.replace( /\[/g, "" ).replace( /\]/g, "" );
+  stylename = stylename.replace( /\(/g, "" ).replace( /\)/g, "" );
+  stylename = stylename.replace( /\{/g, "" ).replace( /\}/g, "" );
+  stylename = stylename.replace( /\</g, "" ).replace( /\>/g, "" );
+  return stylename;
 }
 
 /**

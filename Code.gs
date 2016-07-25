@@ -36,7 +36,7 @@ function check_website()
 
 function display_message( pTitle, pMessage )
 {
-  // Insert a method for displaying remote messages
+  // Insert a way to remotely display messages here.
 }
 
 // Inspired by:
@@ -886,7 +886,11 @@ function renderDataUri_(image)
   }
   if (isa_(image, 'Blob') || isa_(image, 'GmailAttachment')) 
   {
-    var type = image.getContentType().toLowerCase();
+    var type = image.getContentType();
+    if( type )
+    {
+      type = type.toLowerCase();
+    }
     var data = Utilities.base64Encode(image.getBytes());
     if (type.indexOf('image') == 0) 
     {

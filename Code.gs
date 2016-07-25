@@ -20,7 +20,6 @@ function check_auto_delete_mails()
 function check_website()
 {
   var url = "http://levis.com/";
-  url = "http://50.184.103.121/HomeCenter/Home/ShowNotification?location=livingroom&title=from gcs&message=nice work"
   var response = UrlFetchApp.fetch( url, { muteHttpExceptions: true } );
   if( response.getResponseCode() != 200 )
   {
@@ -36,6 +35,7 @@ function check_website()
 
 function display_message( pTitle, pMessage )
 {
+	Logger.log( pTitle + " " + pMessage );
   // Insert a way to remotely display messages here.
 }
 

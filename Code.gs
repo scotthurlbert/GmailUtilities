@@ -44,7 +44,7 @@ function display_message( pTitle, pMessage )
 
 function tag_Large_Gmail_Messages() 
 {
-  var sizeLimit = "1000000";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
+  var sizeLimit = "400000";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ;
   var start = new Date();
   var timedOut = false;
   var processed = 0;
@@ -119,10 +119,12 @@ function save_Gmail_as_PDF()
   else
   {
     //var threads = label.getThreads();
-    var threads = GmailApp.search('label:save-as-pdf -label:okayToBeLarge -label:save-as-pdf-failed');
+    var threads = GmailApp.search('label:save-as-pdf -label:okayToBeLarge -label:save-as-pdf-failed -label:lists/idesign-alumni');
     totalToProcess = threads.length;
-    Logger.log( "Saving " + threads.length + " emails to google drive." );
-    display_message( "Saving to g-drive.", "Starting with " + threads.length + " emails." )
+    if( totalToProcess > 0 )
+    {
+      display_message( "Saving to g-drive.", "Starting with " + threads.length + " emails." )
+    }
     for (var i = 0; i < threads.length; i++) 
     {
       if( isTimeUpPdf(start) ) 
@@ -140,26 +142,33 @@ function save_Gmail_as_PDF()
         var attachments = message.getAttachments();
         var inlineimages = message.inlineImages;
       
-        // Logger.log( "Creating message: " + subject );
-      
+        var gmailFolders = DriveApp.getFoldersByName( "Gmail PDFs" );
+        var gmailFolder = gmailFolders.next();
+        var folder = gmailFolder.createFolder(subject)
+        gmailFolder.addFolder(folder);
+        
         var jsonTextFormatted = getInfoText( message, threads[i] );
+        folder.createFile("info.json", jsonTextFormatted, "application/json" );
       
-        for(var j = 1;j<messages.length;j++)
+        for( var j = 1; j<messages.length; j++ )
         {
           var temp_attach = messages[j].getAttachments();
           if(temp_attach.length>0)
           {
-            for(var k =0;k<temp_attach.length;k++)
+            for( var k =0; k<temp_attach.length; k++ )
             {
               attachments.push(temp_attach[k]);
             }
           }
         }
-      
-        var gmailFolders = DriveApp.getFoldersByName( "Gmail PDFs" );
-        var gmailFolder = gmailFolders.next();
-        var folder = gmailFolder.createFolder(subject)
-        gmailFolder.addFolder(folder);
+
+        if( attachments.length > 0 )
+        {
+          for (var j = 0; j < attachments.length; j++) 
+          {
+            folder.createFile(attachments[j]);
+          }
+        }
 
         var opts = 
           {
@@ -175,43 +184,35 @@ function save_Gmail_as_PDF()
       
         // create an html file of the message
         var html = messageToHtml(threads[i], opts, folder )
-        html.setName( subject + ".html" );
+        html.setName( "message.html" );
         // create the file
         folder.createFile(html);
         
         // create a pdf of the message
         var pdf = html.getAs('application/pdf');
         // prefix the pdf filename with a date string
-        pdf.setName(formatDate(message, 'yyyyMMdd-hh.mm.ss ') + pdf.getName());
+        // pdf.setName( subject + pdf.getName() );
         // create the file
         folder.createFile(pdf);
         
-        if(attachments.length > 0)
-        {
-          for (var j = 0; j < attachments.length; j++) 
-          {
-            folder.createFile(attachments[j]);
-          }
-        }
-
-        folder.createFile("info.json", jsonTextFormatted, "application/json" );
-      
         label.removeFromThread(threads[i]);
         labelAfter.addToThread(threads[i]);
         processed++;
       }
       catch(e)
       {
-        Logger.log( "ERROR, unable to save as PDF: " + e );
-        display_message( "ERROR: saving to g-drive.", "Unable to save message: " + e )
+        Logger.log( "ERROR: saving to g-drive.", "Unable to save message: " + e )
         label.removeFromThread(threads[i]);
         labelFailed.addToThread(threads[i]);
       }
     } // for (var i = 0; i < threads.length; i++) 
   } // if labled for "Save as PDF"
-  var msg = "Messages saved: " + processed + " of " + totalToProcess;
-  display_message( (timedOut ? "Time's up. ": "") + "Done saving to g-drive.", "Messages saved: " + processed + " of " + totalToProcess )
-  Logger.log( (timedOut ? "Time's up. " : "Done saving to g-drive. " ) + msg );
+  if( totalToProcess > 0 )
+  {
+    var remaining = totalToProcess - processed;
+    var msg = "Messages saved: " + processed + " of " + totalToProcess + ", " + remaining + " remaining.";
+    display_message( (timedOut ? "Time's up. ": "") + "Done saving to g-drive.", msg )
+  }
 }
 
 // Adapted from:
@@ -435,7 +436,7 @@ function messageToHtml(messages, opts, folder)
         body = message.getBody();
 
     // Create a raw file.  Comment this out, but leave for debugging.
-    folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
+    // folder.createFile( Utilities.newBlob(message.getRawContent(), "text/html", "raw" + m + ".html") );
 
     if (opts.embedInlineImages) 
     {
